@@ -1,3 +1,10 @@
 fastapi
 uvicorn
 sqlalchemy
+python-multipart
+pydantic
+pytest
+pyyaml
+pytesseract
+pdf2image
+opencv-python
