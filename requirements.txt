@@ -8,3 +8,6 @@ pyyaml
 pytesseract
 pdf2image
 opencv-python
+numpy
+pandas
+matplotlib
