@@ -8,5 +8,6 @@ class UploadResponse(BaseModel):
     size_in_bytes: int
     content_type: str
     upload_time: datetime
+    extracted_text: str
 
 
