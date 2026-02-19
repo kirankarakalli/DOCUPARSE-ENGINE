@@ -12,3 +12,5 @@ numpy
 pandas
 matplotlib
 aiofiles
+SQLAlchemy
+psycopg2
