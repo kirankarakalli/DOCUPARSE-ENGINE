@@ -2,62 +2,110 @@ from datetime import datetime
 from fastapi import UploadFile
 import aiofiles
 from fastapi import HTTPException
+from app.models.document_content import DocumentContent
 from config.configuration import read_yaml
 import os
 import uuid
+from sqlalchemy import UUID
 from app.utils.logging import logger
 from app.services.preprocessing_pipeline.preprocess import preprocess_image
 from app.services.preprocessing_pipeline.ocr import extract_text_from_image
 import asyncio
 from app.database import SessionLocal
-from app.models.document import Document
+from app.models.document import Document, DocumentStatus
 
-config_path=read_yaml("params.yaml")
-uploads_dir = config_path.get("uploads_dir")
-allowed_extensions = [ext.lower() for ext in config_path.get("allowed_extensions")]
-max_file_size_bytes = config_path.get("max_file_size_bytes")
+config=read_yaml("params.yaml")
+uploads_dir = config.get("uploads_dir")
+if not uploads_dir:
+    raise ValueError("uploads_dir not found in configuration")
+allowed_extensions = [ext.lower() for ext in config.get("allowed_extensions", [])]
+if not allowed_extensions:
+    raise ValueError("allowed_extensions not found in configuration")
+max_file_size_bytes = config.get("max_file_size_bytes")
+if not max_file_size_bytes:
+    raise ValueError("max_file_size_bytes not found in configuration")
 
+async def save_file_to_disk(file: UploadFile,document_id:UUID):
 
-async def save_file(file: UploadFile,document_id:str):
-    
     os.makedirs(uploads_dir, exist_ok=True)
-    unique_id = str(uuid.uuid4())
-    file_extension = os.path.splitext(file.filename)[1].lower().replace(".", "")
-
-    if file_extension not in allowed_extensions:
-        logger.warning(f"Invalid file type: {file_extension}")
-        raise HTTPException(status_code=400, detail="Invalid file type")
     
+    file_extension = os.path.splitext(file.filename)[1].lower().replace(".", "")
     content = await file.read()
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Invalid file type")
 
-    if len(content) > max_file_size_bytes:  
-        logger.warning(f"File size exceeds limit: {len(content)} bytes")
-        raise HTTPException(status_code=413, detail=f"File size exceeds {max_file_size_bytes} bytes limit")
+
+    if len(content) > max_file_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds {max_file_size_bytes} bytes limit"
+        )
     
     file_path=os.path.join(uploads_dir, f"{document_id}.{file_extension}")
+    if not os.path.abspath(file_path).startswith(os.path.abspath(uploads_dir)):
+        raise HTTPException(status_code=400, detail="Invalid file path")
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
-        
-    try:
-        preprocess_file = await asyncio.to_thread(preprocess_image, file_path, unique_id)
-        deskew_path = preprocess_file.get("deskewed")
-        if not deskew_path:
-            raise ValueError("deskewed path is missing")
-        extract_text = await asyncio.to_thread(extract_text_from_image, deskew_path)
-        
-    except Exception as e:
-        logger.error(f"Error in preprocessing/OCR: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error processing file")
     
-    logger.info(f"File uploaded successfully: {file.filename}")
     return {
-        "upload_id": unique_id,
-        "original_filename": file.filename,
-        "stored_filename": f"{unique_id}.{file_extension}",
+        "stored_filename": f"{document_id}.{file_extension}",
         "size_in_bytes": len(content),
-        "content_type": file.content_type,
-        "upload_time": datetime.now().isoformat(),
-        "extracted_text": extract_text
+        "file_path":file_path
     }
 
     
+def process_document(file_path: str, document_id: UUID):
+    db = SessionLocal()
+    document = None
+
+    try:
+        logger.info(f"Started processing document {document_id}")
+
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise ValueError("Document not found")
+
+        document.status = DocumentStatus.preprocessing
+        db.commit()
+
+        preprocess_result = preprocess_image(file_path, str(document_id))
+        deskewed_path = preprocess_result.get("deskewed")
+
+        if not deskewed_path:
+            raise ValueError("Deskewed path missing")
+
+        extracted_text = extract_text_from_image(deskewed_path)
+
+        existing = db.query(DocumentContent).filter(
+            DocumentContent.document_id == document_id
+        ).first()
+
+        if existing:
+            existing.extracted_text = extracted_text
+        else:
+            db.add(DocumentContent(
+                document_id=document_id,
+                extracted_text=extracted_text
+            ))
+
+        document.status = DocumentStatus.completed
+        db.commit()
+
+        logger.info(f"Completed processing document {document_id}")
+
+    except Exception as e:
+        db.rollback()
+
+        if document:
+            document.status = DocumentStatus.failed
+            db.commit()
+
+        logger.error(f"OCR processing failed: {str(e)}")
+
+    finally:
+        db.close()
+
+
+
+
+

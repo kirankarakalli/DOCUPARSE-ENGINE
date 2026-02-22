@@ -13,6 +13,8 @@ def detect_file_type(file: UploadFile) -> str:
     Returns:
         str: The detected file type (e.g., 'text', 'image', 'pdf', etc.).
     """
+    if not file.filename:
+        return "unknown"
     mime_type,_=mimetypes.guess_type(file.filename)
 
     if not mime_type:
@@ -45,6 +47,7 @@ def convert_to_grayscale(image_path:str,output_dir:str)->str:
 
 
 def denoise_image(image_path:str,output_dir:str)->str:
+    output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir,exist_ok=True)
     img=cv2.imread(image_path,cv2.IMREAD_GRAYSCALE)
 
@@ -53,12 +56,15 @@ def denoise_image(image_path:str,output_dir:str)->str:
     else:
         denoised_image_median=cv2.medianBlur(img,3)
         file_path=os.path.join(output_dir,"02_denoise_img.jpg")
+        if not file_path.startswith(output_dir):
+            raise ValueError("Path traversal detected")
         cv2.imwrite(file_path,denoised_image_median)
         return file_path
         
 
 
 def threshold_image(image_path:str,output_dir:str)->str:
+    output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir,exist_ok=True)
     img=cv2.imread(image_path,cv2.IMREAD_GRAYSCALE)
     if img is None:
@@ -73,12 +79,15 @@ def threshold_image(image_path:str,output_dir:str)->str:
         2
     )
     file_path=os.path.join(output_dir,"03_Threshold_img.jpg")
+    if not file_path.startswith(output_dir):
+        raise ValueError("Path traversal detected")
     cv2.imwrite(file_path,adaptive_threshold)
     return file_path
 
 
 
 def deskew_image(image_path:str,output_dir:str)->str:
+    output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir,exist_ok=True)
     img=cv2.imread(image_path,cv2.IMREAD_GRAYSCALE)
     if img is None:
@@ -100,13 +109,17 @@ def deskew_image(image_path:str,output_dir:str)->str:
         flags=cv2.INTER_CUBIC,
         borderMode=cv2.BORDER_REPLICATE
     )
+    rotated = cv2.bitwise_not(rotated)
     file_path=os.path.join(output_dir,"04_deskew_img.jpg")
-    cv2.imwrite(file_path, rotated)
+    if not file_path.startswith(output_dir):
+        raise ValueError("Path traversal detected")
+    if not cv2.imwrite(file_path, rotated):
+        raise ValueError(f"Failed to write image to {file_path}")
     return file_path
     
 
-def preprocess_image(image_path:str,upload_id:str)->dict:
-    base_output_dir=os.path.join('processed',upload_id)
+def preprocess_image(image_path:str,upload_id:str,base_dir:str='processed')->dict:
+    base_output_dir=os.path.join(base_dir,upload_id)
     os.makedirs(base_output_dir,exist_ok=True)
 
     gray_path=convert_to_grayscale(image_path,base_output_dir)

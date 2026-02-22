@@ -1,4 +1,6 @@
 uploads_dir: "C:\\Users\\kiran\\OneDrive\\DocuParse Engine\\uploads"
 allowed_extensions: ["jpg", "jpeg", "png", "pdf","doc", "docx", "txt"]
-max_file_size_bytes: 102400
+max_file_size_bytes: 10485760
 database_url: "postgresql://postgres:Sasanur%40123@localhost:5432/docuparse_db"
+host: "localhost"
+port: 8000

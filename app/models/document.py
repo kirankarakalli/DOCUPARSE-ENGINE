@@ -4,7 +4,16 @@ from pydantic import BaseModel
 from app.database import Base
 from datetime import datetime
 from sqlalchemy.orm import relationship
+from sqlalchemy import Enum
+import enum
 import uuid
+
+class DocumentStatus(enum.Enum):
+    uploaded="uploaded"
+    preprocessing="preprocessing"
+    completed="completed"
+    failed="failed"
+
 class Document(Base):
     __tablename__='documents'
 
@@ -13,7 +22,8 @@ class Document(Base):
     stored_filename=Column(String,nullable=False)
     size_in_bytes=Column(Integer,nullable=False)
     content_type=Column(String,nullable=False)
-    upload_time=Column(DateTime,default=datetime.utcnow)
+    status=Column(Enum(DocumentStatus,name='document_status'),server_default=DocumentStatus.preprocessing.value,nullable=False,index=True)
+    upload_time=Column(DateTime,default=datetime.utcnow,index=True,nullable=False)
     content=relationship("DocumentContent", back_populates="document", uselist=False)
     
 

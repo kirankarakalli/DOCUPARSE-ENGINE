@@ -1,13 +1,19 @@
-from pydantic import BaseModel
 from datetime import datetime
+from uuid import UUID
 
-class UploadResponse(BaseModel):
+from pydantic import BaseModel, PositiveInt
+
+
+class UploadAcceptedResponse(BaseModel):
     upload_id: str
-    original_filename: str
     stored_filename: str
-    size_in_bytes: int
-    content_type: str
+    size_in_bytes: PositiveInt
+    status: str
+
+
+class DocumentResponse(BaseModel):
+    id: UUID
+    original_filename: str
+    status: str
     upload_time: datetime
-    extracted_text: str
-
-
+    extracted_text: str | None = None
