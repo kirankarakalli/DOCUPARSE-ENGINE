@@ -14,3 +14,6 @@ matplotlib
 aiofiles
 SQLAlchemy
 psycopg2
+openai
+langchain
+python-dotenv

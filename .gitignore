@@ -2,3 +2,4 @@ venv/
 logs/
 uploads/
 processed/
+.env
