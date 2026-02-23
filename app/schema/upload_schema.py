@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, PositiveInt
@@ -16,4 +17,9 @@ class DocumentResponse(BaseModel):
     original_filename: str
     status: str
     upload_time: datetime
-    extracted_text: str | None = None
+    extracted_text: Optional[str] = None
+    structured_data: Optional[Dict[str, Any]] = None 
+
+    class Config:
+        from_attributes = True   
+       

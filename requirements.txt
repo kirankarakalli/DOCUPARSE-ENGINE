@@ -17,3 +17,5 @@ psycopg2
 openai
 langchain
 python-dotenv
+pdfplumber
+pdf2image

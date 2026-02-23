@@ -3,6 +3,7 @@ from fastapi import UploadFile
 import aiofiles
 from fastapi import HTTPException
 from app.models.document_content import DocumentContent
+from app.services.document_parser.pdf_parser import parse_pdf
 from config.configuration import read_yaml
 import os
 import uuid
@@ -13,6 +14,7 @@ from app.services.preprocessing_pipeline.ocr import extract_text_from_image
 import asyncio
 from app.database import SessionLocal
 from app.models.document import Document, DocumentStatus
+from app.services.llm.extraction_service import extract_structured_data
 
 config=read_yaml("params.yaml")
 uploads_dir = config.get("uploads_dir")
@@ -68,13 +70,23 @@ def process_document(file_path: str, document_id: UUID):
         document.status = DocumentStatus.preprocessing
         db.commit()
 
-        preprocess_result = preprocess_image(file_path, str(document_id))
-        deskewed_path = preprocess_result.get("deskewed")
+        file_extension = os.path.splitext(file_path)[1].lower()
 
-        if not deskewed_path:
-            raise ValueError("Deskewed path missing")
+        # PDF handling
+        if file_extension == ".pdf":
+            extracted_text = parse_pdf(file_path)
 
-        extracted_text = extract_text_from_image(deskewed_path)
+        # Image handling
+        else:
+            preprocess_result = preprocess_image(file_path, str(document_id))
+            deskewed_path = preprocess_result.get("deskewed")
+
+            if not deskewed_path:
+                raise ValueError("Deskewed path missing")
+
+            extracted_text = extract_text_from_image(deskewed_path)
+
+        structured_data=extract_structured_data(extracted_text)
 
         existing = db.query(DocumentContent).filter(
             DocumentContent.document_id == document_id
@@ -82,10 +94,13 @@ def process_document(file_path: str, document_id: UUID):
 
         if existing:
             existing.extracted_text = extracted_text
+            existing.structured_data= structured_data
         else:
             db.add(DocumentContent(
                 document_id=document_id,
-                extracted_text=extracted_text
+                extracted_text=extracted_text,
+                structured_data=structured_data
+                
             ))
 
         document.status = DocumentStatus.completed

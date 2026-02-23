@@ -30,6 +30,7 @@ def get_document(document_id: UUID, db: Session = Depends(get_db)):
         "status": document.status.value if document.status else None,
         "upload_time": document.upload_time,
         "extracted_text": document_content.extracted_text if document_content else None,
+        "structured_data": document_content.structured_data if document_content else None
     }
 
 
