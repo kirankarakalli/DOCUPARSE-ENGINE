@@ -7,21 +7,25 @@ import json
 def extract_structured_data(text: str):
 
     prompt = f"""
-You are a document analysis system.
+    You are a document extraction system.
 
-Extract structured information from the following document text.
+    1. Identify the document_type (invoice, receipt, contract, report, other).
+    2. Extract relevant structured data.
+    3. Return ONLY valid JSON.
+    4. If a field is missing, return null.
 
-Return ONLY valid JSON in this format:
+    JSON format:
 
-{{
-  "document_type": "",
-  "invoice_number": "",
-  "date": "",
-  "total_amount": "",
-  "vendor": ""
-}}
-
-If any field is missing, return null.
+    {{
+    "document_type": "",
+    "data": {{
+        "document_number": null,
+        "date": null,
+        "total_amount": null,
+        "vendor_or_party": null,
+        "additional_fields": null
+    }}
+        }}
 
 Document text:
 {text}

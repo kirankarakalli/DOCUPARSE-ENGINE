@@ -15,6 +15,7 @@ import asyncio
 from app.database import SessionLocal
 from app.models.document import Document, DocumentStatus
 from app.services.llm.extraction_service import extract_structured_data
+from app.services.validator.validator_factory import get_validator
 
 config=read_yaml("params.yaml")
 uploads_dir = config.get("uploads_dir")
@@ -87,6 +88,13 @@ def process_document(file_path: str, document_id: UUID):
             extracted_text = extract_text_from_image(deskewed_path)
 
         structured_data=extract_structured_data(extracted_text)
+        print(structured_data)
+        validator=get_validator(structured_data.get('document_type'))
+        if validator:
+            is_valid,error=validator.validate(structured_data)
+            if not is_valid:
+                raise ValueError(error)
+
 
         existing = db.query(DocumentContent).filter(
             DocumentContent.document_id == document_id
