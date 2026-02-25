@@ -16,7 +16,7 @@ from app.database import SessionLocal
 from app.models.document import Document, DocumentStatus
 from app.services.llm.extraction_service import extract_structured_data
 from app.services.validator.validator_factory import get_validator
-
+from app.services.validator.schema_validator import validate_against_schema,SCHEMA
 config=read_yaml("params.yaml")
 uploads_dir = config.get("uploads_dir")
 if not uploads_dir:
@@ -93,8 +93,13 @@ def process_document(file_path: str, document_id: UUID):
         if validator:
             is_valid,error=validator.validate(structured_data)
             if not is_valid:
-                raise ValueError(error)
+                document.status = DocumentStatus.failed
+                logger.error(f"Validation failed: {error}")
+        
+        is_valid_schema,schema_error=validate_against_schema(structured_data,SCHEMA)
 
+        if not is_valid_schema:
+            raise ValueError(f"Schema validation failed: {schema_error}")
 
         existing = db.query(DocumentContent).filter(
             DocumentContent.document_id == document_id

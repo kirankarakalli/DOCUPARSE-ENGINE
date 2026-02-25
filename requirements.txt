@@ -19,3 +19,4 @@ langchain
 python-dotenv
 pdfplumber
 pdf2image
+jsonschema
