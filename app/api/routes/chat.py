@@ -4,13 +4,17 @@ from app.genai.rag_chain import create_rag_chain
 
 router = APIRouter()
 
+
 class ChatRequest(BaseModel):
-    document_id: str
     question: str
+    session_id: str
 
-@router.post("/chat")
-def chat_with_document(request: ChatRequest):
-    chain = create_rag_chain(request.document_id)
-    response = chain.invoke(request.question)
+
+@router.post("/chat/{document_id}")
+def chat_with_document(document_id: str, request: ChatRequest):
+    chain = create_rag_chain(document_id)
+    response = chain.invoke(
+        {"input": request.question},
+        config={"configurable": {"session_id": request.session_id}},
+    )
     return {"response": response}
-

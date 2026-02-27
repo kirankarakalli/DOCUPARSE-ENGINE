@@ -3,3 +3,4 @@ logs/
 uploads/
 processed/
 .env
+chroma_db/
