@@ -20,3 +20,11 @@ python-dotenv
 pdfplumber
 pdf2image
 jsonschema
+langchain
+langchain-openai
+langchain-groq
+langchain-redis 
+chromadb
+tiktoken
+langchain-community
+chroma

@@ -17,6 +17,7 @@ from app.models.document import Document, DocumentStatus
 from app.services.llm.extraction_service import extract_structured_data
 from app.services.validator.validator_factory import get_validator
 from app.services.validator.schema_validator import validate_against_schema,SCHEMA
+from app.genai.indexer import index_documents
 config=read_yaml("params.yaml")
 uploads_dir = config.get("uploads_dir")
 if not uploads_dir:
@@ -118,7 +119,8 @@ def process_document(file_path: str, document_id: UUID):
 
         document.status = DocumentStatus.completed
         db.commit()
-
+        print("TYPE OF extracted_text:", type(extracted_text))
+        index_documents(document_id, extracted_text)
         logger.info(f"Completed processing document {document_id}")
 
     except Exception as e:
