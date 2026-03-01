@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import RunnableLambda, RunnableMap
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from app.genai.vector_store import create_vector_store
 from app.genai.memory import get_session_memory
@@ -45,18 +45,41 @@ def create_rag_chain(document_id: str):
         ]
     )
 
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
+    def prepare_content(inputs):
+        docs=inputs['docs']
+        context_text = "\n\n".join(doc.page_content for doc in docs)
+        return {
+            "context": context_text,
+            "input": inputs["input"],
+            "docs": docs,  # keep original docs
+            "chat_history": inputs["chat_history"],
+        }
+    
+
 
     rag_chain = (
         {
-            "context": history_aware_retriever | RunnableLambda(format_docs),
+            "docs": history_aware_retriever,
             "input": RunnableLambda(lambda x: x["input"]),
             "chat_history": RunnableLambda(lambda x: x["chat_history"]),
         }
-        | qa_prompt
-        | llm
-        | StrOutputParser()
+        | RunnableLambda(prepare_content)
+        | RunnableMap({
+            "answer": qa_prompt | llm | StrOutputParser(),
+            "docs": lambda x: x["docs"],
+        })
+        | RunnableLambda(
+            lambda x: {
+                "answer": x["answer"],
+                "sources": [
+                    {
+                        "content_preview": doc.page_content[:200],
+                        "metadata": doc.metadata,
+                    }
+                    for doc in x["docs"]
+                ],
+            }
+        )
     )
 
     conversational_rag_chain = RunnableWithMessageHistory(
@@ -64,6 +87,7 @@ def create_rag_chain(document_id: str):
         get_session_memory,
         input_messages_key="input",
         history_messages_key="chat_history",
+        output_messages_key="answer",
     )
 
     return conversational_rag_chain

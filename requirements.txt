@@ -28,3 +28,4 @@ chromadb
 tiktoken
 langchain-community
 chroma
+redis    

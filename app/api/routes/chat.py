@@ -17,4 +17,5 @@ def chat_with_document(document_id: str, request: ChatRequest):
         {"input": request.question},
         config={"configurable": {"session_id": request.session_id}},
     )
-    return {"response": response}
+    return {"response": response['answer'],
+            "sources":response['sources']}
