@@ -1,24 +1,16 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda, RunnableMap
+from langchain_core.runnables import RunnableLambda
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from app.genai.vector_store import create_vector_store
 from app.genai.memory import get_session_memory
 
 
-def create_rag_chain(document_id: str):
+def create_rag_chain(document_ids: list[str]):
 
     vector_store = create_vector_store()
-
-    retriever = vector_store.as_retriever(
-        search_kwargs={
-            "k": 4,
-            "filter": {"document_id": str(document_id)},
-        }
-    )
-
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, streaming=True)
 
     contextualize_prompt = ChatPromptTemplate.from_messages(
         [
@@ -29,8 +21,6 @@ def create_rag_chain(document_id: str):
     )
 
     contextualize_chain = contextualize_prompt | llm | StrOutputParser()
-
-    history_aware_retriever = contextualize_chain | retriever
 
     qa_prompt = ChatPromptTemplate.from_messages(
         [
@@ -45,41 +35,58 @@ def create_rag_chain(document_id: str):
         ]
     )
 
-    def prepare_content(inputs):
-        docs=inputs['docs']
+    def retrieve_docs(inputs):
+        standalone_question = contextualize_chain.invoke(inputs)
+
+        docs_with_scores = vector_store.similarity_search_with_score(
+            query=standalone_question,
+            k=4,
+            filter={"document_id": {"$in": document_ids}},
+        )
+
+        docs = [doc for doc, score in docs_with_scores]
+
         context_text = "\n\n".join(doc.page_content for doc in docs)
+
         return {
             "context": context_text,
             "input": inputs["input"],
-            "docs": docs,  # keep original docs
             "chat_history": inputs["chat_history"],
+            "docs_with_scores": docs_with_scores,
         }
-    
 
+    def calculate_confidence(docs_with_scores):
+        if not docs_with_scores:
+            return 0.0
+
+        avg_distance = sum(score for _, score in docs_with_scores) / len(docs_with_scores)
+
+        confidence = 1 / (1 + avg_distance)
+        
+        return round(confidence, 2)
+
+        return round(confidence, 2)
+
+    def format_output(inputs):
+        answer = (qa_prompt | llm | StrOutputParser()).invoke(inputs)
+
+        confidence = calculate_confidence(inputs["docs_with_scores"])
+
+        return {
+            "answer": answer,
+            "sources": [
+                {
+                    "content_preview": doc.page_content[:200],
+                    "metadata": doc.metadata,
+                }
+                for doc, _ in inputs["docs_with_scores"]
+            ],
+            "confidence": confidence,
+        }
 
     rag_chain = (
-        {
-            "docs": history_aware_retriever,
-            "input": RunnableLambda(lambda x: x["input"]),
-            "chat_history": RunnableLambda(lambda x: x["chat_history"]),
-        }
-        | RunnableLambda(prepare_content)
-        | RunnableMap({
-            "answer": qa_prompt | llm | StrOutputParser(),
-            "docs": lambda x: x["docs"],
-        })
-        | RunnableLambda(
-            lambda x: {
-                "answer": x["answer"],
-                "sources": [
-                    {
-                        "content_preview": doc.page_content[:200],
-                        "metadata": doc.metadata,
-                    }
-                    for doc in x["docs"]
-                ],
-            }
-        )
+        RunnableLambda(retrieve_docs)
+        | RunnableLambda(format_output)
     )
 
     conversational_rag_chain = RunnableWithMessageHistory(
