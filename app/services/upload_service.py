@@ -122,6 +122,10 @@ def process_document(file_path: str, document_id: UUID):
         print("TYPE OF extracted_text:", type(extracted_text))
         index_documents(document_id, extracted_text)
         logger.info(f"Completed processing document {document_id}")
+        return {
+            "extracted_text": extracted_text,
+            "structured_data": structured_data
+        }
 
     except Exception as e:
         db.rollback()
@@ -131,6 +135,12 @@ def process_document(file_path: str, document_id: UUID):
             db.commit()
 
         logger.error(f"OCR processing failed: {str(e)}")
+        
+        return {
+        "extracted_text": "",
+        "structured_data": {},
+        "error": str(e)
+        }
 
     finally:
         db.close()

@@ -10,6 +10,8 @@ class UploadAcceptedResponse(BaseModel):
     stored_filename: str
     size_in_bytes: PositiveInt
     status: str
+    extracted_text: str | None = None
+    structured_data: dict | None = None
 
 
 class DocumentResponse(BaseModel):

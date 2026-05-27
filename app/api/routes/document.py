@@ -63,7 +63,7 @@ async def create_upload_file(
             original_filename=file.filename,
             stored_filename=file_info["stored_filename"],
             size_in_bytes=file_info["size_in_bytes"],
-            content_type=file.content_type,
+            content_type=file.content_type or "application/octet-stream",
             status=DocumentStatus.uploaded,
             upload_time=datetime.now(timezone.utc),
         )
@@ -72,17 +72,18 @@ async def create_upload_file(
         db.commit()
         db.refresh(new_document)
 
-        background_tasks.add_task(
-            process_document,
-            file_info["file_path"],
-            new_document.id,
+        result = process_document(
+        file_info["file_path"],
+        new_document.id,
         )
-
+        print(result)
         return {
             "upload_id": str(new_document.id),
             "stored_filename": file_info["stored_filename"],
             "size_in_bytes": file_info["size_in_bytes"],
             "status": new_document.status.value,
+            "extracted_text": result.get("extracted_text", ""),
+            "structured_data": result.get("structured_data", {}),
         }
 
     except Exception as e:

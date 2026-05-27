@@ -23,9 +23,13 @@ class InvoiceValidator(BaseValidator):
         date_value = data_field.get("date")
         if date_value:
             try:
-                datetime.strptime(date_value, "%d %B %Y")
+                try:
+                    datetime.strptime(date_value, "%d %B %Y")
+                except:
+                    datetime.strptime(date_value, "%B %d, %Y")
+
             except ValueError:
-                return False, "Invalid date format. Expected 'DD Month YYYY'"
+                return False, "Invalid date format"
 
         total_amount = data_field.get("total_amount")
         if total_amount:

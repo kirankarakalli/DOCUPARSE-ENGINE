@@ -29,3 +29,4 @@ tiktoken
 langchain-community
 chroma
 redis    
+gradio
