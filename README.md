@@ -32,30 +32,9 @@ DocuParse Engine allows users to upload documents (PDFs/images), extract text us
 
 ## System Architecture
 
-```text
-User Upload
-    ↓
-FastAPI API Layer
-    ↓
-File Storage
-    ↓
-OCR Pipeline
-(pdf2image + Tesseract OCR)
-    ↓
-LLM Structured Extraction
-(OpenAI)
-    ↓
-Validation Layer
-(JSON Schema + Rule Validators)
-    ↓
-PostgreSQL Storage
-    ↓
-Chroma Vector Database
-    ↓
-RAG Chat API
-```
+ ## Architecture
 
----
+<img src="images\docu arch.png" width="800">
 
 ## Tech Stack
 
