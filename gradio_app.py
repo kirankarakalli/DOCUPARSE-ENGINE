@@ -11,8 +11,12 @@ api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=api_key)
 
 
+API_BASE_URL = os.getenv(
+    "API_BASE_URL",
+    "http://127.0.0.1:8000"
+)
 
-API_URL = "http://127.0.0.1:8000/api/uploadfile"
+UPLOAD_URL = f"{API_BASE_URL}/api/uploadfile"
 
 stored_text = ""
 
@@ -27,7 +31,7 @@ def upload_doc(file):
     with open(file.name, "rb") as f:
 
         response = requests.post(
-            API_URL,
+            UPLOAD_URL,
             files={"file": f}
         )
 

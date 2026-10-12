@@ -13,7 +13,7 @@ pandas
 matplotlib
 aiofiles
 SQLAlchemy
-psycopg2
+psycopg[binary]
 openai
 langchain
 python-dotenv
@@ -30,3 +30,4 @@ langchain-community
 chroma
 redis    
 gradio
+langchain-chroma
