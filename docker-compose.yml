@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docuparse-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+  gradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+    image: docuparse-gradio
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://api:8000
+    depends_on:
+      - api

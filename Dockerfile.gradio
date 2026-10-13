@@ -1,0 +1,14 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY params.yaml .
+COPY gradio_app.py .
+COPY config/ ./config/
+
+EXPOSE 7860
+
+CMD ["python", "gradio_app.py"]

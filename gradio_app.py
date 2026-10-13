@@ -199,6 +199,4 @@ font-size:16px;
         ]
     )
 
-demo.launch(
-    inbrowser=True
-)
+demo.launch(server_name="0.0.0.0", server_port=7860,inbrowser=True)
