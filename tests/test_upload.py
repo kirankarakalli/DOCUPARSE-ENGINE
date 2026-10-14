@@ -1,10 +1,36 @@
 
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.database import get_db
 
+fake_document_id = uuid4()
+
+
+def override_get_db():
+    db = MagicMock()
+    document = SimpleNamespace(
+        id=fake_document_id,
+        original_filename="test.txt",
+        stored_filename="test.txt",
+        size_in_bytes=12,
+        content_type="text/plain",
+        status=SimpleNamespace(value="completed"),
+    )
+
+    db.add.side_effect = lambda obj: setattr(
+        obj, "id", fake_document_id
+    )
+    db.refresh.side_effect = lambda obj: None
+
+    yield db
+
+
+app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 
@@ -45,7 +71,6 @@ def test_upload_file_success():
     assert response.status_code == 200
 
     body = response.json()
-
     assert body["stored_filename"] == "test.txt"
     assert body["size_in_bytes"] == 12
     assert body["extracted_text"] == "Test document content"
@@ -55,3 +80,5 @@ def test_upload_file_success():
 
     mock_save.assert_called_once()
     mock_process.assert_called_once()
+
+    app.dependency_overrides.clear()
