@@ -1,5 +1,5 @@
 
-name: DocuParse Engine CI
+name: DocuParse Engine CI Pipeline
 
 on:
   push:
